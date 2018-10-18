@@ -25,6 +25,7 @@ class TabelaDeDistancias:
     # tabela de roteamento para roteadores que o Roteador nao conhece (sem diretos).
     # formato: a tabela eh um dicionario, sendo key o ip do destino, value um dicionario que contem como key o roteador
     # vizinho, e value uma lista [peso, tempo_expiracao]
+    #  { ip_destino : { ip_roteador_vizinho : [ peso, tempo_expiracao ] }}
 
     def __init__(self, endereco_ip):
         # cada tabela de distancias guarda o endereco ip do roteador que instancia sua tabela e um dict de dicts (que
@@ -34,7 +35,7 @@ class TabelaDeDistancias:
 
     def saltoDeRoteador(self, roteador_destino):
         # anda em direcao ao destino; uma nova tabela eh gerada sempre que acontece o salto, pois se algum roteador for
-        # deletado por expirar, ele nao sera considerado mais na tabela de distancias do roteador instanciado!
+        # deletado por expirar, ele não será considerado mais na tabela de distancias do roteador instanciado!
         global TEMPO_EXPIRACAO
         atualizaTabelaDistancias(self.tabela_distancias)
 
@@ -51,10 +52,22 @@ class TabelaDeDistancias:
 
             roteador_escolhido = random.choice(lista_roteadores_minimos)
         else:
+            # o destino não está na lista de destinos alcançáveis pelo roteador, através da tabela de distâncias.
             return
 
 class Roteador:
-    pass
+    def __init__(self, ip_endereco, porto):
+        # cria conexao socket para o roteador instanciado  a partir do endereco de ip e do porto definido para ele.
+        self.ip_endereco = ip_endereco
+        self.porto       = porto
+        self.socket      = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+        self.socket.bind((self.ip_endereco, self.porto))
+
+        # cada roteador precisa de ter sua tabela de distancias entre o destino e ele mesmo, todos os quais são alcançáveis
+        # por meio de algum roteador vizinho. Para tal, cada roteador instancia uma TabelaDeDistancias. Também é necessário
+        # ter um dict de roteadores vizinhos, para guardar a referência dos roteadores vizinhos e o peso ate chegar a eles.
+        self.tabela_distancias             = TabelaDeDistancias(self.ip_endereco)
+        self.distancia_roteadores_vizinhos = {}
 
 class Entrada:
     def __init__(self, roteador):
