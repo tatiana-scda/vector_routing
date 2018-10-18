@@ -41,15 +41,17 @@ class TabelaDeDistancias:
         if roteador_destino in self.tabela_distancias:
             caminho_minimo = min(dict_roteadores[1] for dict_roteadores in self.tabela_distancias[roteador_destino].values())
 
-        # para destinos contidos na tabela com valores de pesos minimos tambem iguais, faz-se uma selecao balanceada de
-        # qual pulo realizara para que, estatisticamente, ao final das contas, seja sempre mais ou menos 50%, sem
-        # preferencia por alguma das rotas.
-        lista_roteadores_minimos = []
-        for roteador_vizinho in self.tabela_distancias[roteador_destino].items():
-            if self.tabela_distancias[roteador_destino][roteador_vizinho][1] == caminho_minimo:
-                lista_roteadores_minimos.append(roteador_vizinho)
+            # para destinos contidos na tabela com valores de pesos minimos tambem iguais, faz-se uma selecao balanceada de
+            # qual pulo realizara para que, estatisticamente, ao final das contas, seja sempre mais ou menos 50%, sem
+            # preferencia por alguma das rotas.
+            lista_roteadores_minimos = []
+            for roteador_vizinho in self.tabela_distancias[roteador_destino].items():
+                if self.tabela_distancias[roteador_destino][roteador_vizinho][1] == caminho_minimo:
+                    lista_roteadores_minimos.append(roteador_vizinho)
 
-        roteador_escolhido = random.choice(lista_roteadores_minimos)
+            roteador_escolhido = random.choice(lista_roteadores_minimos)
+        else:
+            return
 
 class Roteador:
     pass
