@@ -13,8 +13,8 @@ STARTUP           = None
 def atualizaTabelaDistancias(tabela_distancias):
 # atualiza a tabela, para ignorar os roteadores que expiraram!
     copia_tabela_distancias = {}
-    for destino, roteador_infos in tabela_distancias.items():
-        for roteador_vizinho, lista_peso_tempo in roteador_infos.items():
+    for destino, dict_roteadores in tabela_distancias.items():
+        for roteador_vizinho, lista_peso_tempo in dict_roteadores.items():
             if time.time() - lista_peso_tempo[1] <= TEMPO_EXPIRACAO:
                 # ou seja, se ele nao expirou, logo continuara na tabela de distancias apos esta atualizacao
                 copia_tabela_distancias[destino][roteador_vizinho] = lista_peso_tempo
@@ -38,15 +38,18 @@ class TabelaDeDistancias:
         global TEMPO_EXPIRACAO
         atualizaTabelaDistancias(self.tabela_distancias)
 
+        if roteador_destino in self.tabela_distancias:
+            caminho_minimo = min(dict_roteadores[1] for dict_roteadores in self.tabela_distancias[roteador_destino].values())
+
         # para destinos contidos na tabela com valores de pesos minimos tambem iguais, faz-se uma selecao balanceada de
         # qual pulo realizara para que, estatisticamente, ao final das contas, seja sempre mais ou menos 50%, sem
         # preferencia por alguma das rotas.
-        if roteador_destino in self.tabela_distancias:
-            caminho_curto = self.tabela_distancias[roteador_destino]
-            for destino, roteador_infos in self.tabela_distancias.items():
-                for roteador_vizinho, lista_peso_tempo in roteador_infos.items():
-                    if lista_peso_tempo[0] < caminho_curto:
-                        caminho_curto = lista_peso_tempo[0]
+        lista_roteadores_minimos = []
+        for roteador_vizinho in self.tabela_distancias[roteador_destino].items():
+            if self.tabela_distancias[roteador_destino][roteador_vizinho][1] == caminho_minimo:
+                lista_roteadores_minimos.append(roteador_vizinho)
+
+        roteador_escolhido = random.choice(lista_roteadores_minimos)
 
 class Roteador:
     pass
