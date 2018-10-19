@@ -85,11 +85,27 @@ class ComandosDeEntrada:
 
     def comandoDel(self, comando):
         funcao, vizinho = comando.split()
-        pass
+        
+        for destino, dict_roteadores in tabela_distancias.items():
+            caminho.remove(dict_roteadores)
 
     def comandoTrace(self, comando):
         funcao, destino = comando.split()
-        pass
+        # se houver caminho valido
+        if (saltoDeRoteador(self, destino)):
+            caminho = list()
+
+        # passa por todos roteadores no caminho e adiciona em uma lista
+        for destino, dict_roteadores in tabela_distancias.items():
+            caminho.append(dict_roteadores)
+        
+        mensagem = {
+            "type": "trace"
+            "source": self.ip_endereco
+            "destination": destino
+            "payload": caminho
+        }
+        
 
     def processa_comando(self):
         # leitura da linha do terminal, apos isso, define-se qual comando será executado seguindo o começo deste comando.
