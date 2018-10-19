@@ -1,9 +1,6 @@
-import sys, json, random, socket, ipaddress, time
+import sys, json, random, socket, ipaddress, time, selectors
 
-STARTUP = False
 TEMPO_ATUALIZACAO = sys.argv[2]
-if len(sys.argv) == 4:
-    STARTUP = str(sys.argv[3])
 
 def atualizaTabelaDistancias(tabela_distancias):
 # atualiza a tabela, para ignorar os roteadores que expiraram!
@@ -64,7 +61,20 @@ class Roteador:
         self.tabela_distancias             = TabelaDeDistancias(self.ip_endereco)
         self.distancia_roteadores_vizinhos = {}
 
-class Entrada:
+### >>>>>>>>>>>>>> FALTA IMPLEMENTAR PROCESSAR MENSAGEM <<<<<<<<<<<<<<<< ###
+# o que falta: ver o tipo da mensagem
+# se for update, ele tem que updatar sua tabela de distancias, tem funcao LA EM CIMA de update, conferir!!! so chamar talvez, n sei se eh a mesma ideia.
+# se for trace, ele tem que se gravar no trace e repassar pra frente a caminho do destino
+# se for data, ele tem que repassar a data para o prox roteador vizinho em direcao ao destino dela. ou receber, se for dele.
+# andre cria uma funcao route que significa repassar para o proximo vizinho a caminho do destino, usado em trace e data.
+# ele tb define uma funcao chamada send_update, que empacota a sua tabela atualizada (tem funcao disso ja em, so chamar talvez, n sei se eh a mesma ideia). tambem cria uma msg data e envia pros vizinhos
+
+        def processar_mensagem(self):
+            pass
+
+class ComandosDeEntrada:
+### >>>>>>>>>>>>>> FALTA IMPLEMENTAR OS COMANDOS <<<<<<<<<<<<<<<< ###
+
     def __init__(self, roteador):
         self.roteador = roteador
 
@@ -72,7 +82,6 @@ class Entrada:
         funcao, roteador_vizinho, peso = comando.split()
         roteador_vizinho               = str(vizinho)
         peso                           = int(peso)
-
 
     def comandoDel(self, comando):
         funcao, vizinho = comando.split()
@@ -82,7 +91,7 @@ class Entrada:
         funcao, destino = comando.split()
         pass
 
-    def lerEntrada(self):
+    def processa_comando(self):
         # leitura da linha do terminal, apos isso, define-se qual comando será executado seguindo o começo deste comando.
         comando = sys.stdin.readline()
         funcao  = comando.split()[0]
@@ -99,10 +108,28 @@ def main():
     ### INICIALIZACAO DO ROTEADOR ###
     endereco_ip       = str(sys.argv[1])
     porto             = 55151
+    STARTUP           = None
+    selector          = selectors.DefaultSelector()
 
     # instancio um Roteador para este programa
-    roteador = Roteador(endereco_ip, porto)
-    Entrada()
+    roteador            = Roteador(endereco_ip, porto)
+
+    # instancio um gerenciador de Comandos de Entrada (sejam eventos que ocorrem no stdin,
+    comandos_de_entrada = ComandosDeEntrada(roteador)
+
+    # no caso do argumento STARTUP ser setado, leremos os comandos a partir do arquivo dado de input neste argumento.
+    if len(sys.argv) == 4 and sys.argv[3] != None:
+        arquivo = open(sys.argv[3], 'r')
+        for linha in arquivo:
+            comandos_de_entrada.processa_comando(linha)
+
+    # monitoramento de eventos I/O para os objetos registrados & monitoramento de qualquer mensagem que chegar no socket
+    selectors.DefaultSelector().register(sys.stdin,     sekectors.EVENT_READ, comandos_de_entrada.processa_comando)
+    selectors.DefaultSelector().register(router.socket, sekectors.EVENT_READ, router.processa_mensagem)
+
+### >>>>>>>>>>>>>> FALTA IMPLEMENTAR A UPDATE COM TIMEOUT <<<<<<<<<<<<<<<< ###
+
+    selector.close()
 
 if __name__ == '__main__':
     main()
