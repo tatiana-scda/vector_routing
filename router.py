@@ -1,14 +1,9 @@
 import sys, json, random, socket, ipaddress, time
 
-def tempoAtualizacao():
-    if (len(sys.argv) == 3): float(sys.argv[2])
-    else: 3.0
-
-TEMPO_ATUALIZACAO = tempoAtualizacao()
-TEMPO_EXPIRACAO   = 4*TEMPO_ATUALIZACAO
-STARTUP           = None
-# tempo de expiracao determinado pelo professor
-
+STARTUP = False
+TEMPO_ATUALIZACAO = sys.argv[2]
+if len(sys.argv) == 4:
+    STARTUP = str(sys.argv[3])
 
 def atualizaTabelaDistancias(tabela_distancias):
 # atualiza a tabela, para ignorar os roteadores que expiraram!
@@ -74,16 +69,9 @@ class Entrada:
         self.roteador = roteador
 
     def comandoAdd(self, comando):
-        funcao, vizinho, peso = comando.split()
-        try:
-            vizinho = ipaddress.IPv4Address(vizinho)
-            # validando se a string eh ip valido.
-
-            vizinho = str(vizinho)
-            peso    = int(peso)
-
-        except ValueError:
-            return
+        funcao, roteador_vizinho, peso = comando.split()
+        roteador_vizinho               = str(vizinho)
+        peso                           = int(peso)
 
 
     def comandoDel(self, comando):
@@ -108,6 +96,12 @@ class Entrada:
             comandoTrace(comando)
 
 def main():
+    ### INICIALIZACAO DO ROTEADOR ###
+    endereco_ip       = str(sys.argv[1])
+    porto             = 55151
+
+    # instancio um Roteador para este programa
+    roteador = Roteador(endereco_ip, porto)
     Entrada()
 
 if __name__ == '__main__':
