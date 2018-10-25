@@ -106,7 +106,6 @@ class ComandosDeEntrada:
             "payload": caminho
         }
         
-
     def processa_comando(self):
         # leitura da linha do terminal, apos isso, define-se qual comando será executado seguindo o começo deste comando.
         comando = sys.stdin.readline()
