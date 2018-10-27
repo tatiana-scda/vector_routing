@@ -28,8 +28,7 @@ class TabelaDeDistancias:
     def envia_mensagem(mensagem, self, desino)
 
         for roteador in self.tabela_distancias:
-
-            # fazer caminhamento até que o roteador em quesrão seja o destino
+            # lulis posso fazer isso aqui?
             if (saltoDeRoteador(self, destino) == destino):
                 self.socket.sendto(mensagem.encode('utf-8'), (destino, self.port))
 
