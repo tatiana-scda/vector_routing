@@ -25,6 +25,14 @@ class TabelaDeDistancias:
         self.endereco_ip       = endereco_ip
         self.tabela_distancias = {}
 
+    def envia_mensagem(mensagem, self, desino)
+
+        for roteador in self.tabela_distancias:
+
+            # fazer caminhamento até que o roteador em quesrão seja o destino
+            if (saltoDeRoteador(self, destino) == destino):
+                self.socket.sendto(mensagem.encode('utf-8'), (destino, self.port))
+
     def saltoDeRoteador(self, roteador_destino):
         # anda em direcao ao destino; uma nova tabela eh gerada sempre que acontece o salto, pois se algum roteador for
         # deletado por expirar, ele não será considerado mais na tabela de distancias do roteador instanciado!
@@ -78,16 +86,23 @@ class ComandosDeEntrada:
     def __init__(self, roteador):
         self.roteador = roteador
 
-    def comandoAdd(self, comando):
+    def comandoAdd(self, comando, vizinho):
+        # como
         funcao, roteador_vizinho, peso = comando.split()
-        roteador_vizinho               = str(vizinho)
+        roteador_vizinho               = str(roteador_vizinho)
         peso                           = int(peso)
+
+        # confere o que entrou da rede
+        atualizaTabelaDistancias(self.tabela_distancias)
 
     def comandoDel(self, comando):
         funcao, vizinho = comando.split()
         
         for destino, dict_roteadores in tabela_distancias.items():
             caminho.remove(dict_roteadores)
+
+        # confere o que saiu da rede
+        atualizaTabelaDistancias(self.tabela_distancias)
 
     def comandoTrace(self, comando):
         funcao, destino = comando.split()
@@ -98,13 +113,17 @@ class ComandosDeEntrada:
         # passa por todos roteadores no caminho e adiciona em uma lista
         for destino, dict_roteadores in tabela_distancias.items():
             caminho.append(dict_roteadores)
-        
+
+        # cria a mensagem em padrão para tarcer
         mensagem = {
             "type": "trace"
             "source": self.ip_endereco
             "destination": destino
             "payload": caminho
         }
+
+        #envia mensagem
+        envia_mensagem(mensagem)
         
     def processa_comando(self):
         # leitura da linha do terminal, apos isso, define-se qual comando será executado seguindo o começo deste comando.
