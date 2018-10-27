@@ -25,12 +25,15 @@ class TabelaDeDistancias:
         self.endereco_ip       = endereco_ip
         self.tabela_distancias = {}
 
-    def envia_mensagem(mensagem, self, desino)
+    def envia_mensagem(mensagem, self, destino)
 
         for roteador in self.tabela_distancias:
             # lulis posso fazer isso aqui?
-            if (saltoDeRoteador(self, destino) == destino):
-                self.socket.sendto(mensagem.encode('utf-8'), (destino, self.port))
+            
+            for roteador in dict_roteadores:
+                if (tabela_distancias[destino] == destino):
+                    self.socket.sendto(mensagem.encode('utf-8'), (destino, self.port))
+
 
     def saltoDeRoteador(self, roteador_destino):
         # anda em direcao ao destino; uma nova tabela eh gerada sempre que acontece o salto, pois se algum roteador for
