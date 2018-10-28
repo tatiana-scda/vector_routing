@@ -25,11 +25,9 @@ class TabelaDeDistancias:
         self.endereco_ip       = endereco_ip
         self.tabela_distancias = {}
 
-    def processar_mensagem(mensagem, self):
-
+    def processar_mensagem(self, mensagem):
         for roteador in self.tabela_distancias:
             # lulis posso fazer isso aqui?
-
             # slip horizon
             if (roteador != self.ip_endereco):
                 self.socket.sendto(mensagem.encode('utf-8'), (destino, self.port)) 
@@ -123,7 +121,7 @@ class ComandosDeEntrada:
         }
 
         #envia mensagem
-        processar_mensagem(mensagem)
+        processar_mensagem(self, mensagem)
         
     def processa_comando(self):
         # leitura da linha do terminal, apos isso, define-se qual comando será executado seguindo o começo deste comando.
