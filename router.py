@@ -106,7 +106,8 @@ class ComandosDeEntrada:
     def comandoTrace(self, comando, tabela_distancias):
         funcao, destino = comando.split()
         # se houver caminho valido
-        if (saltoDeRoteador(self, destino)):
+        saltoDeRoteador(self, destino)
+        for roteador in tabela_distancias:
             caminho = list()
 
         # passa por todos roteadores no caminho e adiciona em uma lista
