@@ -25,14 +25,14 @@ class TabelaDeDistancias:
         self.endereco_ip       = endereco_ip
         self.tabela_distancias = {}
 
-    def envia_mensagem(mensagem, self, destino)
+    def processar_mensagem(mensagem, self):
 
         for roteador in self.tabela_distancias:
             # lulis posso fazer isso aqui?
-            
-            for roteador in dict_roteadores:
-                if (tabela_distancias[destino] == destino):
-                    self.socket.sendto(mensagem.encode('utf-8'), (destino, self.port))
+
+            # slip horizon
+            if (roteador != self.ip_endereco):
+                self.socket.sendto(mensagem.encode('utf-8'), (destino, self.port)) 
 
 
     def saltoDeRoteador(self, roteador_destino):
@@ -79,25 +79,22 @@ class Roteador:
 # andre cria uma funcao route que significa repassar para o proximo vizinho a caminho do destino, usado em trace e data.
 # ele tb define uma funcao chamada send_update, que empacota a sua tabela atualizada (tem funcao disso ja em, so chamar talvez, n sei se eh a mesma ideia). tambem cria uma msg data e envia pros vizinhos
 
-        def processar_mensagem(self):
-            pass
-
 class ComandosDeEntrada:
 ### >>>>>>>>>>>>>> FALTA IMPLEMENTAR OS COMANDOS <<<<<<<<<<<<<<<< ###
 
     def __init__(self, roteador):
         self.roteador = roteador
 
-    def comandoAdd(self, comando, vizinho):
+    def comandoAdd(self, comando, vizinho, tabela_distancias):
         # como
         funcao, roteador_vizinho, peso = comando.split()
         roteador_vizinho               = str(roteador_vizinho)
         peso                           = int(peso)
 
-        # confere o que entrou da rede
+        # atualiza a tabela do nodo
         atualizaTabelaDistancias(self.tabela_distancias)
 
-    def comandoDel(self, comando):
+    def comandoDel(self, comando, tabela_distancias):
         funcao, vizinho = comando.split()
         
         for destino, dict_roteadores in tabela_distancias.items():
@@ -106,7 +103,7 @@ class ComandosDeEntrada:
         # confere o que saiu da rede
         atualizaTabelaDistancias(self.tabela_distancias)
 
-    def comandoTrace(self, comando):
+    def comandoTrace(self, comando, tabela_distancias):
         funcao, destino = comando.split()
         # se houver caminho valido
         if (saltoDeRoteador(self, destino)):
@@ -118,14 +115,14 @@ class ComandosDeEntrada:
 
         # cria a mensagem em padrão para tarcer
         mensagem = {
-            "type": "trace"
-            "source": self.ip_endereco
-            "destination": destino
+            "type": "trace",
+            "source": self.ip_endereco,
+            "destination": destino,
             "payload": caminho
         }
 
         #envia mensagem
-        envia_mensagem(mensagem)
+        processar_mensagem(mensagem)
         
     def processa_comando(self):
         # leitura da linha do terminal, apos isso, define-se qual comando será executado seguindo o começo deste comando.
