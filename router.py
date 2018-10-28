@@ -3,7 +3,7 @@ import sys, json, random, socket, ipaddress, time, selectors
 TEMPO_ATUALIZACAO = sys.argv[2]
 
 def atualizaTabelaDistancias(tabela_distancias):
-# atualiza a tabela, para ignorar os roteadores que expiraram!
+    # atualiza a tabela, para ignorar os roteadores que expiraram!
     copia_tabela_distancias = {}
     for destino, dict_roteadores in tabela_distancias.items():
         for roteador_vizinho, lista_peso_tempo in dict_roteadores.items():
@@ -66,6 +66,7 @@ class Roteador:
         # cada roteador precisa de ter sua tabela de distancias entre o destino e ele mesmo, todos os quais são alcançáveis
         # por meio de algum roteador vizinho. Para tal, cada roteador instancia uma TabelaDeDistancias. Também é necessário
         # ter um dict de roteadores vizinhos, para guardar a referência dos roteadores vizinhos e o peso ate chegar a eles.
+
         self.tabela_distancias             = TabelaDeDistancias(self.ip_endereco)
         self.distancia_roteadores_vizinhos = {}
 
@@ -78,28 +79,35 @@ class Roteador:
 # ele tb define uma funcao chamada send_update, que empacota a sua tabela atualizada (tem funcao disso ja em, so chamar talvez, n sei se eh a mesma ideia). tambem cria uma msg data e envia pros vizinhos
 
 class ComandosDeEntrada:
-### >>>>>>>>>>>>>> FALTA IMPLEMENTAR OS COMANDOS <<<<<<<<<<<<<<<< ###
-
+    # roteador eh instanciado.
     def __init__(self, roteador):
         self.roteador = roteador
 
-    def comandoAdd(self, comando, vizinho, tabela_distancias):
-        # como
-        funcao, roteador_vizinho, peso = comando.split()
-        roteador_vizinho               = str(roteador_vizinho)
+    def comandoAdd(self, ip_roteador_vizinho, peso):
+        ip_roteador_vizinho               = str(ip_roteador_vizinho)
         peso                           = int(peso)
 
-        # atualiza a tabela do nodo
-        atualizaTabelaDistancias(self.tabela_distancias)
+        # insere este novo enlace virtual entre o roteador corrente e o roteador associado ao endereço ip dado.
+        self.roteador.distancia_roteadores_vizinhos[ip_roteador_vizinho] = peso
 
-    def comandoDel(self, comando, tabela_distancias):
-        funcao, vizinho = comando.split()
-        
-        for destino, dict_roteadores in tabela_distancias.items():
-            caminho.remove(dict_roteadores)
+        # como atualizamos a tabela, enviamos um update para a rede como broadcast.
+        self.roteador.atualiza_vizinhos(ip_roteador_vizinho)
 
-        # confere o que saiu da rede
-        atualizaTabelaDistancias(self.tabela_distancias)
+    def comandoDel(self, ip_roteador_vizinho):
+        ip_roteador_vizinho               = str(ip_roteador_vizinho)
+
+        # deleta o roteador do dict distancia_roteadores_vizinhos usando seu ip e atualiza a tabela de distancias.
+        if self.roteador.distancia_roteadores_vizinhos.get(ip_roteador_vizinho):
+            self.roteador.distancia_roteadores_vizinhos.pop(ip_roteador_vizinho)
+
+        copia_tabela_distancias = {}
+        for destino, dict_roteadores in self.roteador.tabela_distancias.items():
+            for roteador_vizinho, lista_peso_tempo in dict_roteadores.items():
+                if roteador_vizinho != ip_roteador_vizinho:
+                    dict_roteadores[roteador_vizinho] = lista_peso_tempo
+                else:
+                    return
+        self.roteador.tabela_distancias = copia_tabela_distancias
 
     def comandoTrace(self, comando, tabela_distancias):
         funcao, destino = comando.split()
@@ -130,11 +138,11 @@ class ComandosDeEntrada:
 
         # de acordo com o comando, direciona para a função do comando.
         if funcao   == 'add':
-            comandoAdd(comando)
+            comandoAdd(comando.split()[1], comando.split()[2])
         elif funcao == 'del':
-            comandoDel(comando)
+            comandoDel(comando.split()[1])
         elif funcao == 'trace':
-            comandoTrace(comando)
+            comandoTrace(comando.split()[1], comando.split()[2])
 
 def main():
     ### INICIALIZACAO DO ROTEADOR ###
