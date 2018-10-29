@@ -1,6 +1,8 @@
 import sys, json, random, socket, ipaddress, time, selectors
 
-TEMPO_ATUALIZACAO = sys.argv[2]
+if (len(sys.argv) == 3):
+    TEMPO_ATUALIZACAO = float(sys.argv[2])
+TEMPO_ATUALIZACAO = 3.0
 TEMPO_EXPIRACAO   = 4*TEMPO_ATUALIZACAO
 
 def atualizaTabelaDistancias(tabela_distancias):
@@ -210,10 +212,10 @@ class ComandosDeEntrada:
 
         # de acordo com o comando, direciona para a função do comando.
         if funcao   == 'add':
-            comandoAdd(comando.split()[1], comando.split()[2])
+            self.comandoAdd(comando.split()[1], comando.split()[2])
 
         elif funcao == 'del':
-            comandoDel(comando.split()[1])
+            self.comandoDel(comando.split()[1])
 
         elif funcao == 'trace':
             ip_roteador_destino = comando.split()[1]
@@ -224,7 +226,7 @@ class ComandosDeEntrada:
                 "destination": ip_roteador_destino,
                 "hops": []
             }
-            comandoTrace(mensagem)
+            self.comandoTrace(mensagem)
 
         else:
             sys.exit(1)
@@ -235,7 +237,6 @@ def main():
     porto             = 55151
     STARTUP           = None
     selector          = selectors.DefaultSelector()
-
     # instancio um Roteador para este programa
     roteador            = Roteador(endereco_ip, porto)
 
@@ -249,15 +250,15 @@ def main():
             comandos_de_entrada.processa_comando(linha)
 
     # monitoramento de eventos I/O para os objetos registrados & monitoramento de qualquer mensagem que chegar no socket
-    selectors.DefaultSelector().register(sys.stdin,     sekectors.EVENT_READ, comandos_de_entrada.processa_comando)
-    selectors.DefaultSelector().register(router.socket, sekectors.EVENT_READ, router.processa_mensagem)
+    selectors.DefaultSelector().register(sys.stdin,       selectors.EVENT_READ, comandos_de_entrada.processa_comando)
+    selectors.DefaultSelector().register(roteador.socket, selectors.EVENT_READ, roteador.processa_mensagem)
 
     proximo_update = time.time() + TEMPO_ATUALIZACAO
 
     while True:
         tempo_restante = proximo_update - time.time()
         if tempo_restante <= 0:
-            for roteador_vizinho in roteador.tabela_distancias.items():
+            for roteador_vizinho in roteador.tabela_distancias.tabela_distancias:
                 roteador.atualiza_vizinhos(roteador_vizinho)
             proximo_update = proximo_update + TEMPO_ATUALIZACAO
         ioStream = selector.select(timeout=tempo_restante)
