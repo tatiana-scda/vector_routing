@@ -1,6 +1,7 @@
 import sys, json, random, socket, ipaddress, time, selectors
 
 TEMPO_ATUALIZACAO = sys.argv[2]
+TEMPO_EXPIRACAO   = 4*TEMPO_ATUALIZACAO
 
 def atualizaTabelaDistancias(tabela_distancias):
     # atualiza a tabela, para ignorar os roteadores que expiraram!
@@ -51,6 +52,7 @@ class TabelaDeDistancias:
                     lista_roteadores_minimos.append(roteador_vizinho)
 
             roteador_escolhido = random.choice(lista_roteadores_minimos)
+            return roteador_escolhido
         else:
             # o destino não está na lista de destinos alcançáveis pelo roteador, através da tabela de distâncias.
             return
@@ -70,15 +72,82 @@ class Roteador:
         self.tabela_distancias             = TabelaDeDistancias(self.ip_endereco)
         self.distancia_roteadores_vizinhos = {}
 
-### >>>>>>>>>>>>>> FALTA IMPLEMENTAR PROCESSAR MENSAGEM <<<<<<<<<<<<<<<< ###
-# o que falta: ver o tipo da mensagem
-# se for update, ele tem que updatar sua tabela de distancias, tem funcao LA EM CIMA de update, conferir!!! so chamar talvez, n sei se eh a mesma ideia.
-# se for trace, ele tem que se gravar no trace e repassar pra frente a caminho do destino
-# se for data, ele tem que repassar a data para o prox roteador vizinho em direcao ao destino dela. ou receber, se for dele.
-# andre cria uma funcao route que significa repassar para o proximo vizinho a caminho do destino, usado em trace e data.
-# ele tb define uma funcao chamada send_update, que empacota a sua tabela atualizada (tem funcao disso ja em, so chamar talvez, n sei se eh a mesma ideia). tambem cria uma msg data e envia pros vizinhos
-    def enviar(self, mensagem):
+    def processaTrace(self, mensagem):
+        # construcao da proxima mensagem por meio da que temos, com o ip do atual roteador.
+        origem = mensagem['source']
+        destino = mensagem['destination']
+        mensagem['hops'].append(self.roteador.ip_endereco)
 
+        # confirma se este roteador eh o enderecado como destino. se o roteador for o destino do trace, ele deve enviar
+        # uma mensagem data para o roteador que originou o trace; o payload da mensagem data deve ser um string contendo
+        # o JSON correspondente à mensagem de trace.
+        if self.ip_endereco == destino:
+            payload = json.dumps(mensagem)
+            mensagem = {
+                'type': 'data',
+                'source': self.ip_endereco,
+                'destination': origem,
+                'payload': payload
+            }
+        self.saltar_roteador(mensagem)
+
+    def processaAtualizacao(self, mensagem):
+        roteador_vizinho = mensagem['origem']
+        dicionario_melhores_distancias = mensagem['distances']
+
+        dicionario_melhores_distancias.pop(self.ip_endereco)
+        for destino, distancia in dicionario_melhores_distancias.items():
+            lista_peso_tempo = [distancia + self.tabela_distancias.tabela_distancias[roteador_vizinho], time.time()]
+            self.tabela_distancias.tabela_distancias[destino][roteador_vizinho] = lista_peso_tempo
+
+    def processa_mensagem(self):
+        # esta funcao eh de callback para cada mensagem que chegar no socket.
+        msg, endereco     = self.socket.recvfrom(65535)
+        ip_vizinho, porto = endereco
+        mensagem          = json.loads(msg.decode('utf-8'))
+
+        if mensagem['type'] == 'data':
+        # se for 'data', ele tem que repassar a data para o proximo roteador vizinho em direcao ao destino dela.
+            self.saltar_roteador(mensagem)
+        if mensagem['type'] == 'trace':
+        # se ele for 'trace', ele tem que andar para o proximo vizinho em direcao ao destino.
+            processaTrace(mensagem)
+        if mensagem['type'] == 'update':
+        # se ele for 'update', tem que atualizar sua tabela de distancias forcadamente.
+            processaAtualizacao(mensagem)
+
+    def saltar_roteador(self, msg):
+        mensagem = json.dumps(msg)
+        destino  = msg['destination']
+
+        if destino != self.addr:
+            roteador_vizinho = self.tabela_distancias.saltoDeRoteador(destino)
+            if roteador_vizinho is None: return
+            self.socket.sendto(mensagem.encode('utf-8'), (roteador_vizinho, self.porto))
+
+    def atualiza_vizinhos(self, ip_roteador_vizinho):
+        global TEMPO_EXPIRACAO
+        dicionario_melhores_distancias = {}
+
+        atualizaTabelaDistancias(self.tabela_distancias.tabela_distancias)
+        dicionario_melhores_distancias[self.ip_endereco] = 0
+
+        for destino, dict_roteadores in self.tabela_distancias.tabela_distancias.items():
+            if destino == ip_roteador_vizinho:
+                continue
+            entradas = list((entrada for h, entrada in dict_roteadores.items() if h != ip_roteador_vizinho))
+            if entradas:
+                dicionario_melhores_distancias[destino] = min(entrada.distancia for entrada in entradas)
+
+        mensagem = {
+            'type': 'update',
+            'source': self.ip_endereco,
+            'destination': ip_roteador_vizinho,
+            'distances': dicionario_melhores_distancias
+        }
+
+        mensagem_string = json.dumps(mensagem, indent=2)
+        self.socket.sendto(mensagem_string.encode('utf-8'), (ip_roteador_vizinho, self.porto))
 
 class ComandosDeEntrada:
     # roteador eh instanciado.
@@ -86,7 +155,7 @@ class ComandosDeEntrada:
         self.roteador = roteador
 
     def comandoAdd(self, ip_roteador_vizinho, peso):
-        ip_roteador_vizinho               = str(ip_roteador_vizinho)
+        ip_roteador_vizinho            = str(ip_roteador_vizinho)
         peso                           = int(peso)
 
         # insere este novo enlace virtual entre o roteador corrente e o roteador associado ao endereço ip dado.
@@ -112,8 +181,6 @@ class ComandosDeEntrada:
         self.roteador.tabela_distancias = copia_tabela_distancias
 
     def comandoTrace(self, ip_roteador_destino, mensagem):
-        ip_roteador_vizinho = str(ip_roteador_destino)
-
         # construcao da proxima mensagem por meio da que temos, com o ip do atual roteador.
         origem  = mensagem['source']
         destino = mensagem['destination']
@@ -122,7 +189,7 @@ class ComandosDeEntrada:
         # confirma se este roteador eh o enderecado como destino. se o roteador for o destino do trace, ele deve enviar
         # uma mensagem data para o roteador que originou o trace; o payload da mensagem data deve ser um string contendo
         # o JSON correspondente à mensagem de trace.
-        if self.roteador.ip_endereco == ip_roteador_destino:
+        if self.roteador.ip_endereco == destino:
             payload = json.dumps(mensagem)
             mensagem = {
                 'type': 'data',
@@ -130,13 +197,15 @@ class ComandosDeEntrada:
                 'destination': origem,
                 'payload': payload
             }
+        self.roteador.saltar_roteador(mensagem)
 
-        self.roteador.enviar(mensagem)
+    def processa_comando(self, linha=None):
+        # leitura da linha do terminal, apos isso, define-se qual comando será executado seguindo o começo deste comando
+        if linha != None:
+            comando = linha
+        else:
+            comando = sys.stdin.readline()
 
-        
-    def processa_comando(self):
-        # leitura da linha do terminal, apos isso, define-se qual comando será executado seguindo o começo deste comando.
-        comando = sys.stdin.readline()
         funcao  = comando.split()[0]
 
         # de acordo com o comando, direciona para a função do comando.
@@ -155,8 +224,7 @@ class ComandosDeEntrada:
                 "destination": ip_roteador_destino,
                 "hops": []
             }
-
-            comandoTrace(ip_roteador_destino, mensagem)
+            comandoTrace(mensagem)
 
         else:
             sys.exit(1)
@@ -184,7 +252,18 @@ def main():
     selectors.DefaultSelector().register(sys.stdin,     sekectors.EVENT_READ, comandos_de_entrada.processa_comando)
     selectors.DefaultSelector().register(router.socket, sekectors.EVENT_READ, router.processa_mensagem)
 
-### >>>>>>>>>>>>>> FALTA IMPLEMENTAR A UPDATE COM TIMEOUT <<<<<<<<<<<<<<<< ###
+    proximo_update = time.time() + TEMPO_ATUALIZACAO
+
+    while True:
+        tempo_restante = proximo_update - time.time()
+        if tempo_restante <= 0:
+            for roteador_vizinho in roteador.tabela_distancias.items():
+                roteador.atualiza_vizinhos(roteador_vizinho)
+            proximo_update = proximo_update + TEMPO_ATUALIZACAO
+        ioStream = selector.select(timeout=tempo_restante)
+        for chave, mascara in ioStream:
+            callback = chave.data
+            callback()
 
     selector.close()
 
