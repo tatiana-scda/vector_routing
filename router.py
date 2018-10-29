@@ -77,6 +77,8 @@ class Roteador:
 # se for data, ele tem que repassar a data para o prox roteador vizinho em direcao ao destino dela. ou receber, se for dele.
 # andre cria uma funcao route que significa repassar para o proximo vizinho a caminho do destino, usado em trace e data.
 # ele tb define uma funcao chamada send_update, que empacota a sua tabela atualizada (tem funcao disso ja em, so chamar talvez, n sei se eh a mesma ideia). tambem cria uma msg data e envia pros vizinhos
+    def enviar(self, mensagem):
+
 
 class ComandosDeEntrada:
     # roteador eh instanciado.
@@ -109,27 +111,28 @@ class ComandosDeEntrada:
                     return
         self.roteador.tabela_distancias = copia_tabela_distancias
 
-    def comandoTrace(self, comando, tabela_distancias):
-        funcao, destino = comando.split()
-        # se houver caminho valido
-        saltoDeRoteador(self, destino)
-        for roteador in tabela_distancias:
-            caminho = list()
+    def comandoTrace(self, ip_roteador_destino, mensagem):
+        ip_roteador_vizinho = str(ip_roteador_destino)
 
-        # passa por todos roteadores no caminho e adiciona em uma lista
-        for destino, dict_roteadores in tabela_distancias.items():
-            caminho.append(dict_roteadores)
+        # construcao da proxima mensagem por meio da que temos, com o ip do atual roteador.
+        origem  = mensagem['source']
+        destino = mensagem['destination']
+        mensagem['hops'].append(self.roteador.ip_endereco)
 
-        # cria a mensagem em padrão para tarcer
-        mensagem = {
-            "type": "trace",
-            "source": self.ip_endereco,
-            "destination": destino,
-            "payload": caminho
-        }
+        # confirma se este roteador eh o enderecado como destino. se o roteador for o destino do trace, ele deve enviar
+        # uma mensagem data para o roteador que originou o trace; o payload da mensagem data deve ser um string contendo
+        # o JSON correspondente à mensagem de trace.
+        if self.roteador.ip_endereco == ip_roteador_destino:
+            payload = json.dumps(mensagem)
+            mensagem = {
+                'type': 'data',
+                'source': self.roteador.ip_endereco,
+                'destination': origem,
+                'payload': payload
+            }
 
-        #envia mensagem
-        processar_mensagem(self, mensagem)
+        self.roteador.enviar(mensagem)
+
         
     def processa_comando(self):
         # leitura da linha do terminal, apos isso, define-se qual comando será executado seguindo o começo deste comando.
@@ -139,10 +142,24 @@ class ComandosDeEntrada:
         # de acordo com o comando, direciona para a função do comando.
         if funcao   == 'add':
             comandoAdd(comando.split()[1], comando.split()[2])
+
         elif funcao == 'del':
             comandoDel(comando.split()[1])
+
         elif funcao == 'trace':
-            comandoTrace(comando.split()[1], comando.split()[2])
+            ip_roteador_destino = comando.split()[1]
+
+            mensagem = {
+                "type": "trace",
+                "source": self.roteador.ip_endereco,
+                "destination": ip_roteador_destino,
+                "hops": []
+            }
+
+            comandoTrace(ip_roteador_destino, mensagem)
+
+        else:
+            sys.exit(1)
 
 def main():
     ### INICIALIZACAO DO ROTEADOR ###
