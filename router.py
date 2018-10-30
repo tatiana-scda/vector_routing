@@ -1,4 +1,7 @@
-#!/usr/bin/python3
+#!usr/bin/python3
+
+# /Users/zireael/anaconda3/bin/python
+
 import sys, json, random, socket, ipaddress, time, selectors
 
 if (len(sys.argv) == 3):
@@ -25,11 +28,12 @@ class TabelaDeDistancias:
     # vizinho, e value uma lista [peso, tempo_expiracao]
     #  { ip_destino : { ip_roteador_vizinho : [ peso, tempo_expiracao ] }}
 
-    def __init__(self, endereco_ip):
+    def __init__(self, endereco_ip, roteador):
         # cada tabela de distancias guarda o endereco ip do roteador que instancia sua tabela e um dict de dicts (que
         # sao os destinos e seus pesos, alem do timeout para expiracao).
         self.endereco_ip       = endereco_ip
         self.tabela_distancias = {}
+        self.roteador_ref = roteador
 
     def processar_mensagem(self, mensagem):
         for roteador in self.tabela_distancias:
@@ -44,23 +48,32 @@ class TabelaDeDistancias:
         # deletado por expirar, ele não será considerado mais na tabela de distancias do roteador instanciado!
         global TEMPO_EXPIRACAO
         self.tabela_distancias = atualizaTabelaDistancias(self.tabela_distancias)
+        roteador_escolhido = None
+        caminho_minimo = -1
 
+        lista_roteadores_minimos = []
         if roteador_destino in self.tabela_distancias:
             caminho_minimo = min(dict_roteadores[0] for dict_roteadores in self.tabela_distancias[roteador_destino].values())
 
             # para destinos contidos na tabela com valores de pesos minimos tambem iguais, faz-se uma selecao balanceada de
             # qual pulo realizara para que, estatisticamente, ao final das contas, seja sempre mais ou menos 50%, sem
             # preferencia por alguma das rotas.
-            lista_roteadores_minimos = []
             for roteador_vizinho in self.tabela_distancias[roteador_destino]:
                 if self.tabela_distancias[roteador_destino][roteador_vizinho][0] == caminho_minimo:
                     lista_roteadores_minimos.append(roteador_vizinho)
 
+        if roteador_destino in self.roteador_ref.distancia_roteadores_vizinhos:
+            if caminho_minimo > self.roteador_ref.distancia_roteadores_vizinhos[roteador_destino]:
+                lista_roteadores_minimos = [roteador_destino]
+            elif caminho_minimo == self.roteador_ref.distancia_roteadores_vizinhos[roteador_destino]:
+                lista_roteadores_minimos.append(roteador_destino)
+
+        if len(lista_roteadores_minimos) > 1:
             roteador_escolhido = random.choice(lista_roteadores_minimos)
-            return roteador_escolhido
-        else:
-            # o destino não está na lista de destinos alcançáveis pelo roteador, através da tabela de distâncias.
-            return
+        elif len(lista_roteadores_minimos) == 1:
+            roteador_escolhido = lista_roteadores_minimos[0]
+
+        return roteador_escolhido
 
 class Roteador:
     def __init__(self, ip_endereco, porto):
@@ -74,7 +87,7 @@ class Roteador:
         # por meio de algum roteador vizinho. Para tal, cada roteador instancia uma TabelaDeDistancias. Também é necessário
         # ter um dict de roteadores vizinhos, para guardar a referência dos roteadores vizinhos e o peso ate chegar a eles.
 
-        self.tabela_distancias             = TabelaDeDistancias(self.ip_endereco)
+        self.tabela_distancias             = TabelaDeDistancias(self.ip_endereco, self)
         self.distancia_roteadores_vizinhos = {}
 
     def processaTrace(self, mensagem):
@@ -87,6 +100,7 @@ class Roteador:
         # uma mensagem data para o roteador que originou o trace; o payload da mensagem data deve ser um string contendo
         # o JSON correspondente à mensagem de trace.
         if self.ip_endereco == destino:
+            print(mensagem)
             payload = json.dumps(mensagem)
             mensagem = {
                 'type': 'data',
@@ -94,7 +108,6 @@ class Roteador:
                 'destination': origem,
                 'payload': payload
             }
-            print(mensagem)
         self.saltar_roteador(mensagem)
 
     def processaAtualizacao(self, mensagem):
@@ -132,6 +145,7 @@ class Roteador:
         if destino != self.ip_endereco:
             roteador_vizinho = self.tabela_distancias.saltoDeRoteador(destino)
             if roteador_vizinho is None: return
+            print(roteador_vizinho)
             self.socket.sendto(mensagem.encode('utf-8'), (roteador_vizinho, self.porto))
 
     def atualiza_vizinhos(self, ip_roteador_vizinho):
@@ -270,7 +284,7 @@ def main():
     selector.register(roteador.socket, selectors.EVENT_READ, roteador.processa_mensagem)
 
     proximo_update = time.time() + TEMPO_ATUALIZACAO
-
+    print(roteador.distancia_roteadores_vizinhos)
     while True:
         tempo_restante = proximo_update - time.time()
         if tempo_restante <= 0:
