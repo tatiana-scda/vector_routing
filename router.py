@@ -197,14 +197,17 @@ class ComandosDeEntrada:
 
     def comandoDel(self, ip_roteador_vizinho):
         ip_roteador_vizinho               = str(ip_roteador_vizinho)
+        # deve deletar seu caminho para o nodo e todos caminhos que passam por ele
 
         # deleta o roteador do dict distancia_roteadores_vizinhos usando seu ip e atualiza a tabela de distancias.
         if self.roteador.distancia_roteadores_vizinhos.get(ip_roteador_vizinho):
+            # não é del self?
             self.roteador.distancia_roteadores_vizinhos.pop(ip_roteador_vizinho)
 
         copia_tabela_distancias = {}
         for destino, dict_roteadores in self.roteador.tabela_distancias.items():
             for roteador_vizinho, lista_peso_tempo in dict_roteadores.items():
+                # não copia se o ip deletado for gateway de caminho
                 if roteador_vizinho != ip_roteador_vizinho:
                     dict_roteadores[destino] = lista_peso_tempo
                 else:
