@@ -1,13 +1,8 @@
 #!usr/bin/python3
 
 # /Users/zireael/anaconda3/bin/python
-
 import sys, json, random, socket, ipaddress, time, selectors
-
-if (len(sys.argv) == 3):
-    TEMPO_ATUALIZACAO = float(sys.argv[2])
-TEMPO_ATUALIZACAO = 3.0
-TEMPO_EXPIRACAO   = 4*TEMPO_ATUALIZACAO
+TEMPO_EXPIRACAO = 0.0
 
 def atualizaTabelaDistancias(tabela_distancias):
     # atualiza a tabela, para ignorar os roteadores que expiraram!
@@ -44,6 +39,7 @@ class TabelaDeDistancias:
 
 
     def saltoDeRoteador(self, roteador_destino):
+        #print('salta de roteador')
         # anda em direcao ao destino; uma nova tabela eh gerada sempre que acontece o salto, pois se algum roteador for
         # deletado por expirar, ele não será considerado mais na tabela de distancias do roteador instanciado!
         global TEMPO_EXPIRACAO
@@ -111,14 +107,18 @@ class Roteador:
         self.saltar_roteador(mensagem)
 
     def processaAtualizacao(self, mensagem):
+        #print('processa atualizacao')
         roteador_vizinho = mensagem['source']
         dicionario_melhores_distancias = mensagem['distances']
+        #print(str(self.tabela_distancias))
 
         for destino, distancia in dicionario_melhores_distancias.items():
-            lista_peso_tempo = [distancia + self.distancia_roteadores_vizinhos[roteador_vizinho], time.time()]
-            if destino not in self.tabela_distancias.tabela_distancias:
-                self.tabela_distancias.tabela_distancias[destino] = {}
-            self.tabela_distancias.tabela_distancias[destino][roteador_vizinho] = lista_peso_tempo
+            #print(self.distancia_roteadores_vizinhos)
+            if self.distancia_roteadores_vizinhos.get(roteador_vizinho):
+                lista_peso_tempo = [distancia + self.distancia_roteadores_vizinhos[roteador_vizinho], time.time()]
+                if destino not in self.tabela_distancias.tabela_distancias:
+                    self.tabela_distancias.tabela_distancias[destino] = {}
+                self.tabela_distancias.tabela_distancias[destino][roteador_vizinho] = lista_peso_tempo
 
     def processa_mensagem(self):
         # esta funcao eh de callback para cada mensagem que chegar no socket.
@@ -149,6 +149,7 @@ class Roteador:
             self.socket.sendto(mensagem.encode('utf-8'), (roteador_vizinho, self.porto))
 
     def atualiza_vizinhos(self, ip_roteador_vizinho):
+        #print('atualiza vizinho')
         global TEMPO_EXPIRACAO
         dicionario_melhores_distancias = {}
 
@@ -176,6 +177,7 @@ class Roteador:
             'destination': ip_roteador_vizinho,
             'distances': dicionario_melhores_distancias
         }
+        #print('saiu')
 
         mensagem_string = json.dumps(mensagem, indent=2)
         self.socket.sendto(mensagem_string.encode('utf-8'), (ip_roteador_vizinho, self.porto))
@@ -205,7 +207,7 @@ class ComandosDeEntrada:
             self.roteador.distancia_roteadores_vizinhos.pop(ip_roteador_vizinho)
 
         copia_tabela_distancias = {}
-        for destino, dict_roteadores in self.roteador.tabela_distancias.items():
+        for destino, dict_roteadores in self.roteador.tabela_distancias.tabela_distancias.items():
             for roteador_vizinho, lista_peso_tempo in dict_roteadores.items():
                 # não copia se o ip deletado for gateway de caminho
                 if roteador_vizinho != ip_roteador_vizinho:
@@ -265,6 +267,12 @@ class ComandosDeEntrada:
             sys.exit(1)
 
 def main():
+    global TEMPO_EXPIRACAO
+    TEMPO_ATUALIZACAO = 3.0
+    if (len(sys.argv) == 4):
+        TEMPO_ATUALIZACAO = float(sys.argv[2])
+    TEMPO_EXPIRACAO = 4 * TEMPO_ATUALIZACAO
+
     ### INICIALIZACAO DO ROTEADOR ###
     endereco_ip       = str(sys.argv[1])
     porto             = 55151
@@ -287,13 +295,16 @@ def main():
     selector.register(roteador.socket, selectors.EVENT_READ, roteador.processa_mensagem)
 
     proximo_update = time.time() + TEMPO_ATUALIZACAO
-    print(roteador.distancia_roteadores_vizinhos)
+
+    #print(roteador.distancia_roteadores_vizinhos)
     while True:
         tempo_restante = proximo_update - time.time()
         if tempo_restante <= 0:
             for roteador_vizinho in roteador.distancia_roteadores_vizinhos:
                 roteador.atualiza_vizinhos(roteador_vizinho)
             proximo_update = proximo_update + TEMPO_ATUALIZACAO
+            tempo_restante = proximo_update - time.time()
+            #print(tempo_restante)
         ioStream = selector.select(timeout=tempo_restante)
         for chave, mascara in ioStream:
             callback = chave.data
