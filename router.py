@@ -209,11 +209,9 @@ class ComandosDeEntrada:
         copia_tabela_distancias = {}
         for destino, dict_roteadores in self.roteador.tabela_distancias.tabela_distancias.items():
             for roteador_vizinho, lista_peso_tempo in dict_roteadores.items():
-                # não copia se o ip deletado for gateway de caminho
-                if roteador_vizinho != ip_roteador_vizinho:
-                    dict_roteadores[destino] = lista_peso_tempo
-                else:
-                    return
+                if destino not in copia_tabela_distancias:
+                    copia_tabela_distancias[destino] = {}
+                copia_tabela_distancias[destino][roteador_vizinho] = lista_peso_tempo
         self.roteador.tabela_distancias = copia_tabela_distancias
 
     def comandoTrace(self, mensagem):
