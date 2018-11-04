@@ -59,7 +59,7 @@ class TabelaDeDistancias:
                     lista_roteadores_minimos.append(roteador_vizinho)
 
         if roteador_destino in self.roteador_ref.distancia_roteadores_vizinhos:
-            if caminho_minimo > self.roteador_ref.distancia_roteadores_vizinhos[roteador_destino]:
+            if caminho_minimo == -1 or caminho_minimo > self.roteador_ref.distancia_roteadores_vizinhos[roteador_destino]:
                 lista_roteadores_minimos = [roteador_destino]
             elif caminho_minimo == self.roteador_ref.distancia_roteadores_vizinhos[roteador_destino]:
                 lista_roteadores_minimos.append(roteador_destino)
