@@ -1,6 +1,6 @@
-#!usr/bin/python3
+#!/usr/bin/python3
 
-# /Users/zireael/anaconda3/bin/python
+# /users/zireael/anaconda3/bin/python
 import sys, json, random, socket, ipaddress, time, selectors
 TEMPO_EXPIRACAO = 0.0
 
@@ -212,7 +212,7 @@ class ComandosDeEntrada:
                 if destino not in copia_tabela_distancias:
                     copia_tabela_distancias[destino] = {}
                 copia_tabela_distancias[destino][roteador_vizinho] = lista_peso_tempo
-        self.roteador.tabela_distancias = copia_tabela_distancias
+        self.roteador.tabela_distancias.tabela_distancias = copia_tabela_distancias
 
     def comandoTrace(self, mensagem):
         # construcao da proxima mensagem por meio da que temos, com o ip do atual roteador.
