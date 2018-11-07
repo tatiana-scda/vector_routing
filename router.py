@@ -1,6 +1,6 @@
-#!/usr/bin/python3
+#!/users/zireael/anaconda3/bin/python
 
-# /users/zireael/anaconda3/bin/python
+# /usr/bin/python3
 import sys, json, random, socket, ipaddress, time, selectors
 TEMPO_EXPIRACAO = 0.0
 
