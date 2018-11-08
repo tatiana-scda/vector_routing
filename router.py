@@ -1,6 +1,8 @@
-#!/users/zireael/anaconda3/bin/python
+#!/usr/bin/python3
 
-# /usr/bin/python3
+#Remember to change this before submitting!
+# /users/zireael/anaconda3/bin/python
+
 import sys, json, random, socket, ipaddress, time, selectors
 TEMPO_EXPIRACAO = 0.0
 
@@ -32,14 +34,11 @@ class TabelaDeDistancias:
 
     def processar_mensagem(self, mensagem):
         for roteador in self.tabela_distancias:
-            # lulis posso fazer isso aqui?
-            # slip horizon
             if (roteador != self.ip_endereco):
                 self.socket.sendto(mensagem.encode('utf-8'), (destino, self.port)) 
 
 
     def saltoDeRoteador(self, roteador_destino):
-        #print('salta de roteador')
         # anda em direcao ao destino; uma nova tabela eh gerada sempre que acontece o salto, pois se algum roteador for
         # deletado por expirar, ele não será considerado mais na tabela de distancias do roteador instanciado!
         global TEMPO_EXPIRACAO
@@ -91,12 +90,11 @@ class Roteador:
         origem = mensagem['source']
         destino = mensagem['destination']
         mensagem['hops'].append(self.ip_endereco)
-
         # confirma se este roteador eh o enderecado como destino. se o roteador for o destino do trace, ele deve enviar
         # uma mensagem data para o roteador que originou o trace; o payload da mensagem data deve ser um string contendo
         # o JSON correspondente à mensagem de trace.
         if self.ip_endereco == destino:
-            print(mensagem)
+            #print("Mensagem de trace ", mensagem)
             payload = json.dumps(mensagem)
             mensagem = {
                 'type': 'data',
@@ -107,13 +105,10 @@ class Roteador:
         self.saltar_roteador(mensagem)
 
     def processaAtualizacao(self, mensagem):
-        #print('processa atualizacao')
         roteador_vizinho = mensagem['source']
         dicionario_melhores_distancias = mensagem['distances']
-        #print(str(self.tabela_distancias))
 
         for destino, distancia in dicionario_melhores_distancias.items():
-            #print(self.distancia_roteadores_vizinhos)
             if self.distancia_roteadores_vizinhos.get(roteador_vizinho):
                 lista_peso_tempo = [distancia + self.distancia_roteadores_vizinhos[roteador_vizinho], time.time()]
                 if destino not in self.tabela_distancias.tabela_distancias:
@@ -129,7 +124,7 @@ class Roteador:
         if mensagem['type'] == 'data':
         # se for 'data', ele tem que repassar a data para o proximo roteador vizinho em direcao ao destino dela.
             if mensagem['destination'] == self.ip_endereco:
-                print(mensagem)
+                #print("Processando mensagem, que é", mensagem)
             self.saltar_roteador(mensagem)
         if mensagem['type'] == 'trace':
         # se ele for 'trace', ele tem que andar para o proximo vizinho em direcao ao destino.
@@ -145,11 +140,10 @@ class Roteador:
         if destino != self.ip_endereco:
             roteador_vizinho = self.tabela_distancias.saltoDeRoteador(destino)
             if roteador_vizinho is None: return
-            print(roteador_vizinho)
+            #print("O vizinho é", roteador_vizinho)
             self.socket.sendto(mensagem.encode('utf-8'), (roteador_vizinho, self.porto))
 
     def atualiza_vizinhos(self, ip_roteador_vizinho):
-        #print('atualiza vizinho')
         global TEMPO_EXPIRACAO
         dicionario_melhores_distancias = {}
 
@@ -177,7 +171,6 @@ class Roteador:
             'destination': ip_roteador_vizinho,
             'distances': dicionario_melhores_distancias
         }
-        #print('saiu')
 
         mensagem_string = json.dumps(mensagem, indent=2)
         self.socket.sendto(mensagem_string.encode('utf-8'), (ip_roteador_vizinho, self.porto))
@@ -193,14 +186,12 @@ class ComandosDeEntrada:
 
         # insere este novo enlace virtual entre o roteador corrente e o roteador associado ao endereço ip dado.
         self.roteador.distancia_roteadores_vizinhos[ip_roteador_vizinho] = peso
-
         # como atualizamos a tabela, enviamos um update para a rede como broadcast.
         self.roteador.atualiza_vizinhos(ip_roteador_vizinho)
 
     def comandoDel(self, ip_roteador_vizinho):
         ip_roteador_vizinho               = str(ip_roteador_vizinho)
         # deve deletar seu caminho para o nodo e todos caminhos que passam por ele
-
         # deleta o roteador do dict distancia_roteadores_vizinhos usando seu ip e atualiza a tabela de distancias.
         if self.roteador.distancia_roteadores_vizinhos.get(ip_roteador_vizinho):
             # não é del self?
@@ -294,7 +285,6 @@ def main():
 
     proximo_update = time.time() + TEMPO_ATUALIZACAO
 
-    #print(roteador.distancia_roteadores_vizinhos)
     while True:
         tempo_restante = proximo_update - time.time()
         if tempo_restante <= 0:
@@ -302,7 +292,7 @@ def main():
                 roteador.atualiza_vizinhos(roteador_vizinho)
             proximo_update = proximo_update + TEMPO_ATUALIZACAO
             tempo_restante = proximo_update - time.time()
-            #print(tempo_restante)
+
         ioStream = selector.select(timeout=tempo_restante)
         for chave, mascara in ioStream:
             callback = chave.data
